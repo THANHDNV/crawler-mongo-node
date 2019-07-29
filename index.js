@@ -1,8 +1,7 @@
 const cheerio = require('cheerio')
-const request = require('request')
 const url = require('url')
-const util = require('util')
-const fs = require('fs')
+const { Builder, By, Key, until} = require('selenium-webdriver')
+const MongoClient = require('mongodb').MongoClient
 // const crawler = require('crawler')
 
 let stop = false;
@@ -15,22 +14,56 @@ console.log('Trying to crawl')
 let baseUrl = 'https://www.vanitiesdepot.com/'
 let collectionUrl = 'https://www.vanitiesdepot.com/collections/all?_=pf&page=1'
 
-let req = request(collectionUrl,{
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36'
-    },
+let document
+(async function() {
+    let driver = await new Builder().forBrowser('chrome').build();
+    try {
+        await driver.get('collectionUrl');
+        await driver.sleep(5000)
 
-}, (err, res, body) => {
-    console.log('requested')
-    if (err) {
-        console.log('An error occured')
-        console.log(err)
-    } else {
-        let data = collectionProcessing(body)
-        fs.writeFileSync('data', JSON.stringify(data))
-        fs.writeFileSync('data.html', body)
+        document = await driver.getPageSource()
+        let data = collectionProcessing(document)
+        console.log(data)
+    } catch (error) {
+        
+    } finally {
+        driver.quit()
     }
+} 
+);
+
+const dbUri = "mongodb+srv://thanhdnv:" + encodeURI('brodOz8JTkI6W18y') + "@mongo1-c2nh2.azure.mongodb.net/test?retryWrites=true&w=majority"
+const client = new MongoClient(dbUri, {
+    useNewUrlParser: true
 })
+client.connect(async function(error, db) {
+    if (error) {
+        console.log(error)
+    } else {
+        let db = client.db()
+        await db.listCollections({name: 'vanitiesdepot'}).next((err, collinfo) => {
+            console.log(collinfo)
+        })
+    }
+    client.close();
+})
+
+// let req = request(collectionUrl,{
+//     headers: {
+//         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36'
+//     },
+
+// }, (err, res, body) => {
+//     console.log('requested')
+//     if (err) {
+//         console.log('An error occured')
+//         console.log(err)
+//     } else {
+//         let data = collectionProcessing(body)
+//         fs.writeFileSync('data', JSON.stringify(data))
+//         fs.writeFileSync('data.html', body)
+//     }
+// })
 
 function collectionProcessing(body) {
     let $ = cheerio.load(body)

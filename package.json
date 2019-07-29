@@ -4,11 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/THANHDNV/crawler-node.git"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index"
   },
   "keywords": [],
   "author": "",
@@ -19,7 +16,8 @@
   "homepage": "https://github.com/THANHDNV/crawler-node#readme",
   "dependencies": {
     "cheerio": "^1.0.0-rc.3",
-    "crawler": "^1.2.1",
-    "request": "^2.88.0"
+    "mongodb": "^3.2.7",
+    "request": "^2.88.0",
+    "selenium-webdriver": "^4.0.0-alpha.4"
   }
 }
