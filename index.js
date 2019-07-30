@@ -2,51 +2,107 @@ const cheerio = require('cheerio')
 const url = require('url')
 const { Builder, By, Key, until} = require('selenium-webdriver')
 const MongoClient = require('mongodb').MongoClient
+const fs = require('fs')
 // const crawler = require('crawler')
 
 let stop = false;
 
 console.log('Trying to crawl')
-// while (!stop) {
-
-// }
 
 let baseUrl = 'https://www.vanitiesdepot.com/'
-let collectionUrl = 'https://www.vanitiesdepot.com/collections/all?_=pf&page=1'
+let collectionUrl = 'https://www.vanitiesdepot.com/collections/all?_=pf&page=:id'
+let page = 1
+let dataArr = [];
+// while (!stop) {
+//     (async function() {
+//         let driver = await new Builder().forBrowser('chrome').build();
+//         try {
+//             await driver.get(collectionUrl.replace(':id', page));
+//             await driver.sleep(5000)
+    
+//             let document = await driver.getPageSource()
+    
+//             if (cheerio.load(document)('#bc-sf-filter-products>.grid__item').length > 0) {
+//                 let data = collectionProcessing(document)
+//                 dataArr = [...dataArr, ...data]
+//                 page += 1;
+//             } else {
+//                 stop = true
+//             }
+//         } catch (error) {
+            
+//         } finally {
+//             driver.quit()
+//         }
+//     } 
+//     )();
+// }
 
-let document
 (async function() {
-    let driver = await new Builder().forBrowser('chrome').build();
-    try {
-        await driver.get('collectionUrl');
-        await driver.sleep(5000)
+    while(!stop && page != 5) {
+        let driver = await new Builder().forBrowser('chrome').build();
+        try {
+            await driver.get(collectionUrl.replace(':id', page));
+            await driver.sleep(1500)
 
-        document = await driver.getPageSource()
-        let data = collectionProcessing(document)
-        console.log(data)
-    } catch (error) {
-        
-    } finally {
-        driver.quit()
+            let document = await driver.getPageSource()
+
+            if (cheerio.load(document)('#bc-sf-filter-products>.grid__item').length > 0) {
+                let data = collectionProcessing(document)
+                dataArr = [...dataArr, ...data]
+                page += 1;
+            } else {
+                stop = true
+            }
+        } catch (error) {
+            
+        } finally {
+            driver.quit()
+        }
     }
 } 
-);
+)().then(() => {
+    fs.writeFileSync('data.json', JSON.stringify(dataArr))
+});
+
+
 
 const dbUri = "mongodb+srv://thanhdnv:" + encodeURI('brodOz8JTkI6W18y') + "@mongo1-c2nh2.azure.mongodb.net/test?retryWrites=true&w=majority"
 const client = new MongoClient(dbUri, {
     useNewUrlParser: true
 })
-client.connect(async function(error, db) {
-    if (error) {
-        console.log(error)
-    } else {
-        let db = client.db()
-        await db.listCollections({name: 'vanitiesdepot'}).next((err, collinfo) => {
-            console.log(collinfo)
-        })
-    }
-    client.close();
-})
+// client.connect(async function(error, db) {
+//     if (error) {
+//         console.log(error)
+//     } else {
+//         let db = client.db()
+//         await db.listCollections({name: 'vanitiesdepot'}).next(async (err, collinfo) => {
+//             if (err) {
+//                 console.log('unable to check for collection:', err)
+//             } else {
+//                 async function insertData() {
+//                     console.log('inserting data to the database')
+//                 }
+//                 let hasCol = true
+//                 if (!collinfo) {
+//                     hasCol = false
+//                     console.log('creating collection')
+//                     await db.createCollection('vanitiesdepot', async (error, result) => {
+//                         if (error) {
+//                             console.log('Unable to create collection:', error)
+//                         } else {
+//                             hasCol = true
+//                         }
+//                     })
+//                 }
+//                 if (hasCol) {
+//                     await insertData()
+//                 }
+//             }
+//         })
+//     }
+//     client.close();
+// })
 
 // let req = request(collectionUrl,{
 //     headers: {
@@ -65,9 +121,9 @@ client.connect(async function(error, db) {
 //     }
 // })
 
+let id = 1
 function collectionProcessing(body) {
-    let $ = cheerio.load(body)
-    let id = 1
+    let $ = cheerio.load(body)    
     console.log($('#bc-sf-filter-products>.grid__item').length)
     let arr = []
     $('#bc-sf-filter-products>.grid__item').each(function(index) {
