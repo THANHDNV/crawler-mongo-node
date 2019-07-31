@@ -3,6 +3,7 @@ const url = require('url')
 const MongoClient = require('mongodb').MongoClient
 const fs = require('fs')
 const puppeteer = require('puppeteer')
+const util = require('util')
 
 let stop = false;
 
@@ -15,19 +16,45 @@ let dataArr = [];
 
 (async function() {
     const browser = await puppeteer.launch({
-        headless: false,
-        timeout: 0
+        headless: true,
+        timeout: 0,
+        args: ['--deterministic-fetch',"--proxy-server='direct://'", '--proxy-bypass-list=*']
     })
 
     while(!stop) {
         const pageB = await browser.newPage()
-        const tmpUrl = collectionUrl.replace(':id', page)
-        console.log('going to ', tmpUrl)
         try {
+            
+            const tmpUrl = collectionUrl.replace(':id', page)
+            console.log('going to ', tmpUrl)
+            console.log('setting user-agent')
             await pageB.setUserAgent('Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36')
-            await pageB.setCacheEnabled(false)
+            console.log('set viewport')
+            await pageB.setViewport({ width: 1920, height: 1080 });
+            await pageB.setRequestInterception(true);
+
+            // let fileRequestCount = 0
+            pageB.on('request', function(req, args) {
+                if(req.resourceType() === 'image'){
+                    req.abort();
+                } else if(req.resourceType() === 'stylesheet' || req.resourceType() === 'font'){
+                    req.abort();
+                }
+                else {
+                    // console.log('req: ',req.url())
+                    // fileRequestCount += 1;
+                    // console.log('fileRequestCount:', fileRequestCount)
+                    req.continue();
+                }
+            })
+            // let fileLoadedCount = 0
+            pageB.on('response', async function(res, args) {
+                // console.log('res: ', res.ok())
+                // fileLoadedCount += 1;
+                // console.log('fileLoadedCount:', fileLoadedCount)
+            })
             await pageB.goto(tmpUrl,{
-                timeout: 0
+                timeout: 0,
             })
             console.log('getting document')
             let document = await pageB.content()
