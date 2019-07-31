@@ -1,9 +1,8 @@
 const cheerio = require('cheerio')
 const url = require('url')
-const { Builder, By, Key, until} = require('selenium-webdriver')
 const MongoClient = require('mongodb').MongoClient
 const fs = require('fs')
-// const crawler = require('crawler')
+const puppeteer = require('puppeteer')
 
 let stop = false;
 
@@ -13,59 +12,44 @@ let baseUrl = 'https://www.vanitiesdepot.com/'
 let collectionUrl = 'https://www.vanitiesdepot.com/collections/all?_=pf&page=:id'
 let page = 1
 let dataArr = [];
-// while (!stop) {
-//     (async function() {
-//         let driver = await new Builder().forBrowser('chrome').build();
-//         try {
-//             await driver.get(collectionUrl.replace(':id', page));
-//             await driver.sleep(5000)
-    
-//             let document = await driver.getPageSource()
-    
-//             if (cheerio.load(document)('#bc-sf-filter-products>.grid__item').length > 0) {
-//                 let data = collectionProcessing(document)
-//                 dataArr = [...dataArr, ...data]
-//                 page += 1;
-//             } else {
-//                 stop = true
-//             }
-//         } catch (error) {
-            
-//         } finally {
-//             driver.quit()
-//         }
-//     } 
-//     )();
-// }
 
 (async function() {
-    while(!stop && page != 5) {
-        let driver = await new Builder().forBrowser('chrome').build();
+    const browser = await puppeteer.launch({
+        headless: false,
+        timeout: 0
+    })
+
+    while(!stop) {
+        const pageB = await browser.newPage()
+        const tmpUrl = collectionUrl.replace(':id', page)
+        console.log('going to ', tmpUrl)
         try {
-            await driver.get(collectionUrl.replace(':id', page));
-            await driver.sleep(1500)
-
-            let document = await driver.getPageSource()
-
-            if (cheerio.load(document)('#bc-sf-filter-products>.grid__item').length > 0) {
-                let data = collectionProcessing(document)
-                dataArr = [...dataArr, ...data]
-                page += 1;
+            await pageB.setUserAgent('Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36')
+            await pageB.setCacheEnabled(false)
+            await pageB.goto(tmpUrl,{
+                timeout: 0
+            })
+            console.log('getting document')
+            let document = await pageB.content()
+            let data = collectionProcessing(document)
+            if (data.length == 0) {
+                stop = true;
             } else {
-                stop = true
+                dataArr = [...dataArr, ...data]
+                page += 1
             }
-        } catch (error) {
             
+        } catch (error) {
+            console.log('Unable to fetch page:', error)
         } finally {
-            driver.quit()
+            console.log('closing page')
+            pageB.close()
         }
     }
-} 
-)().then(() => {
+    browser.close()
+})().then(() => {
     fs.writeFileSync('data.json', JSON.stringify(dataArr))
 });
-
-
 
 const dbUri = "mongodb+srv://thanhdnv:" + encodeURI('brodOz8JTkI6W18y') + "@mongo1-c2nh2.azure.mongodb.net/test?retryWrites=true&w=majority"
 const client = new MongoClient(dbUri, {
@@ -125,6 +109,9 @@ let id = 1
 function collectionProcessing(body) {
     let $ = cheerio.load(body)    
     console.log($('#bc-sf-filter-products>.grid__item').length)
+    if ($('#bc-sf-filter-products>.grid__item').length == 0) {
+        return [];
+    }
     let arr = []
     $('#bc-sf-filter-products>.grid__item').each(function(index) {
         let element = $(this)
@@ -154,10 +141,6 @@ function collectionProcessing(body) {
         }
         id += 1;
         arr.push(item_obj)
-
-        // let hidden_img = element.find('.grid-view-item-image .hidden>img')
-        // console.log(hidden_img.attr('src'))
-        // console.log(item_obj)
     })
 
     return arr
